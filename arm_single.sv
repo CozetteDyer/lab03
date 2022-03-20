@@ -259,9 +259,12 @@ module condlogic (input  logic       clk, reset,
                  .Flags(Flags),
                  .CondEx(CondEx));
    assign FlagWrite = FlagW & {2{CondEx}};
-   assign RegWrite  = RegW  & CondEx;
+   assign RegWrite  = RegW  & CondEx;                         //////// added ~NoWrite
    assign MemWrite  = MemW  & CondEx;
    assign PCSrc     = PCS   & CondEx;
+
+                                                              // added: assign carry = Flags[1];
+                                                              // for ADC
    
 endmodule // condlogic
 
@@ -297,25 +300,29 @@ module condcheck (input  logic [3:0] Cond,
 endmodule // condcheck
 
 module datapath (input  logic        clk, reset,
-                 input  logic [ 2:0]  RegSrc,
+                 input  logic [ 2:0] RegSrc,
                  input  logic        RegWrite,
-                 input  logic [ 1:0]  ImmSrc,
+                 input  logic [ 1:0] ImmSrc,
                  input  logic        ALUSrc,
-                 input  logic [ 1:0]  ALUControl,
+                 input  logic [ 1:0] ALUControl,         /// change bits for ALU control ??
                  input  logic        MemtoReg,
                  input  logic        PCSrc,
-                 output logic [ 3:0]  ALUFlags,
+                 output logic [ 3:0] ALUFlags,
                  output logic [31:0] PC,
                  input  logic [31:0] Instr,
                  output logic [31:0] ALUResult, WriteData,
                  input  logic [31:0] ReadData,
-                 input  logic        PCReady);
+                 input  logic        PCReady
+                                                        /// ADDed: 
+                                                        // input logic carry, // for ADC
+                                                        // input logic shift // for all the shifting required (LSL, LSR, ASR)
+                 );
    
    logic [31:0] PCNext, PCPlus4, PCPlus8;
    logic [31:0] ExtImm, SrcA, SrcB, Result;
-   logic [ 3:0]  RA1, RA2, RA3;
+   logic [ 3:0] RA1, RA2, RA3;
    logic [31:0] RA4;   
-   
+   // ADDED: l
    // next PC logic
    mux2 #(32)  pcmux (.d0(PCPlus4),
                       .d1(Result),
