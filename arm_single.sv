@@ -84,9 +84,11 @@ module arm (input  logic        clk, reset,
             input  logic        PCReady);
    
    logic [3:0] ALUFlags;
+   logic [1:0] shiftValue;
    logic       RegWrite, ALUSrc, MemtoReg, PCSrc;
    logic [2:0] RegSrc;   
-   logic [1:0] ImmSrc, ALUControl;
+   logic [1:0] ImmSrc;
+   logic [3:0] ALUControl; 
    
    controller c (.clk(clk),
                  .reset(reset),
@@ -100,7 +102,9 @@ module arm (input  logic        clk, reset,
                  .MemWrite(MemWrite),
                  .MemtoReg(MemtoReg),
                  .PCSrc(PCSrc),
-                 .MemStrobe(MemStrobe));
+                 .MemStrobe(MemStrobe),
+		 .shiftValue(shiftValue)
+		 );
    datapath dp (.clk(clk),
                 .reset(reset),
                 .RegSrc(RegSrc),
@@ -116,7 +120,9 @@ module arm (input  logic        clk, reset,
                 .ALUResult(ALUResult),
                 .WriteData(WriteData),
                 .ReadData(ReadData),
-                .PCReady(PCReady));
+                .PCReady(PCReady),
+		.shiftValue(shiftValue)
+		);
    
 endmodule // arm
 
@@ -127,11 +133,13 @@ module controller (input  logic         clk, reset,
                    output logic         RegWrite,
                    output logic [ 1:0]  ImmSrc,
                    output logic         ALUSrc, 
-                   output logic [ 1:0]  ALUControl,
+                   output logic [ 4:0]  ALUControl,
                    output logic         MemWrite, MemtoReg,
                    output logic         PCSrc,
-                   output logic         MemStrobe);
-   
+                   output logic         MemStrobe,
+		   output logic 	shiftValue	
+			);
+ 
    logic [1:0] FlagW;
    logic       PCS, RegW, MemW;
    
@@ -147,7 +155,8 @@ module controller (input  logic         clk, reset,
                 .ImmSrc(ImmSrc),
                 .RegSrc(RegSrc),
                 .ALUControl(ALUControl),
-                .MemStrobe(MemStrobe));
+                .MemStrobe(MemStrobe),
+		.shiftValue(shiftValue));
    condlogic cl (.clk(clk),
                  .reset(reset),
                  .Cond(Instr[31:28]),
@@ -167,9 +176,11 @@ module decoder (input  logic [1:0] Op,
                 output logic [1:0] FlagW,
                 output logic       PCS, RegW, MemW,
                 output logic       MemtoReg, ALUSrc,
-                output logic [1:0] ImmSrc, ALUControl,
+                output logic [1:0] ImmSrc,
+		output logic [4:0] ALUControl,
                 output logic [2:0] RegSrc,
-                output logic       MemStrobe);
+                output logic       MemStrobe,
+		output logic 	   shiftValue);
    
    logic [11:0] controls;
    logic        Branch, ALUOp;
@@ -201,18 +212,31 @@ module decoder (input  logic [1:0] Op,
      if (ALUOp)
        begin                 // which Data Processing Instr?
          case(Funct[4:1]) 
-            4'b0100: ALUControl = 4'b0000; // ADD
-            4'b0010: ALUControl = 4'b0001; // SUB
-            4'b0000: ALUControl = 4'b0010; // AND
-            4'b1100: ALUControl = 4'b0011; // ORR
-            4'b0101: ALUControl = 4'b0100; // ADC
-            4'b1011: ALUControl = 4'b0101; // CMN
-            4'b1010: ALUControl = 4'b0110; // CMP
-            4'b1001: ALUControl = 4'b0111; // TEQ
-            4'b1000: ALUControl = 4'b1000; // TST
-            4'b0110: ALUControl = 4'b1001; // SBC
-            4'b0001: ALUControl = 4'b1010; // EOR
-            default: ALUControl = 4'bx;  // unimplemented
+            4'b0100: ALUControl = 5'b00000; // ADD
+            4'b0010: ALUControl = 5'b00001; // SUB
+            4'b0000: ALUControl = 5'b00010; // AND
+            4'b1100: ALUControl = 5'b00011; // ORR
+            4'b0101: ALUControl = 5'b00100; // ADC
+            4'b1011: ALUControl = 5'b00101; // CMN
+            4'b1010: ALUControl = 5'b00110; // CMP
+            4'b1001: ALUControl = 5'b00111; // TEQ
+            4'b1000: ALUControl = 5'b01000; // TST
+            4'b0110: ALUControl = 5'b01001; // SBC
+            4'b0001: ALUControl = 5'b01010; // EOR
+	    4'b1101: case(shiftValue)
+	     
+	    		10:   ALUControl = 5'b01011; // ASR
+	   		00:   ALUControl = 5'b01100; // LSL
+	  		01:   ALUControl = 5'b01101; // LSR
+	  		      ALUControl = 5'b01110; // MOV                          NEEDS AN IMMEDIATE ASK TA ON FRIDAY               QJKENJKLNqkheblkNEKHFGBJLKmgkjKLGW
+          		11:   ALUControl = 5'b01111; // ROR
+
+		     endcase
+
+	    4'b0001: ALUControl = 5'b10000; // BIC
+	    4'b0001: ALUControl = 5'b10001; // MVN
+	 
+            default: ALUControl = 5'bx;  // unimplemented
          endcase
          // update flags if S bit is set 
          // (C & V only updated for arith instructions)
@@ -233,7 +257,7 @@ endmodule // decoder
 
 module condlogic (input  logic       clk, reset,
                   input  logic [3:0] Cond,
-                  input  logic [3:0] ALUFlags,
+                  input  logic [:0] ALUFlags,
                   input  logic [1:0] FlagW,
                   input  logic       PCS, RegW, MemW,
                   output logic       PCSrc, RegWrite, MemWrite);
@@ -259,12 +283,11 @@ module condlogic (input  logic       clk, reset,
                  .Flags(Flags),
                  .CondEx(CondEx));
    assign FlagWrite = FlagW & {2{CondEx}};
-   assign RegWrite  = RegW  & CondEx;                         //////// added ~NoWrite
+   assign RegWrite  = RegW  & CondEx;                       
    assign MemWrite  = MemW  & CondEx;
    assign PCSrc     = PCS   & CondEx;
 
-                                                              // added: assign carry = Flags[1];
-                                                              // for ADC
+                                     
    
 endmodule // condlogic
 
@@ -304,7 +327,7 @@ module datapath (input  logic        clk, reset,
                  input  logic        RegWrite,
                  input  logic [ 1:0] ImmSrc,
                  input  logic        ALUSrc,
-                 input  logic [ 1:0] ALUControl,         /// change bits for ALU control ??
+                 input  logic [ 4:0] ALUControl,        
                  input  logic        MemtoReg,
                  input  logic        PCSrc,
                  output logic [ 3:0] ALUFlags,
@@ -313,9 +336,6 @@ module datapath (input  logic        clk, reset,
                  output logic [31:0] ALUResult, WriteData,
                  input  logic [31:0] ReadData,
                  input  logic        PCReady
-                                                        /// ADDed: 
-                                                        // input logic carry, // for ADC
-                                                        // input logic shift // for all the shifting required (LSL, LSR, ASR)
                  );
    
    logic [31:0] PCNext, PCPlus4, PCPlus8;
@@ -466,7 +486,7 @@ module mux2 #(parameter WIDTH = 8)
 endmodule // mux2
 
 module alu (input  logic [31:0] a, b,
-            input  logic [ 3:0] ALUControl,
+            input  logic [ 4:0] ALUControl,
             output logic [31:0] Result,
             output logic [ 3:0] ALUFlags);
    
@@ -479,15 +499,45 @@ module alu (input  logic [31:0] a, b,
 
    always_comb
      casex (ALUControl[3:0])
-        4'b000?:  Result = sum;			    	      // ADD & SUB
-        4'b0010:  Result = a & b;  				      // AND
-        4'b0011:  Result = a | b;  				      // ORR
-        4'b0100:  Result = a + b + sum[32];			// ADC
-        4'b0101:  Result = a + b;				        // CMN
-        4'b0110:  Result = a - b;			  	      // CMP
-        4'b0111:  Result = a ^ b ; 				      // TEQ
-        4'b1000:  Result = a & b ; 				      // TST
-        4'b0110:  Result = a - b - sum[32];			// SBC
+        5'b0000?:  Result = sum;			    	        // ADD & SUB
+        5'b00010:  Result = a & b;  					// AND
+        5'b00011:  Result = a | b;  				  	// ORR
+        5'b00100:  Result = a + b + sum[32];			      	// ADC
+        5'b00101:  begin						// CMN 
+			Result = a + b;				    
+			RegWrite = 0;	
+		  end		      
+        5'b00110:  begin						// CMP
+			RegWrite = 0;
+			Result = a - b;	
+		  end 		  	      
+        5'b00111:  begin						// TEQ
+			Result = a ^ b ; 	
+			RegWrite = 0;
+		  end
+	
+        5'b01000: begin  					     	// TST
+			RegWrite = 0;
+			Result = a & b ; 		
+		 end
+        5'b01001: begin  					      	// SBC
+			Result = a - b - sum[32];			      
+			RegWrite = 0;
+		end
+	5'b01010: 	Result = a ^ b; 						 //EOR
+	5'b01011: 	Result = Instr[3:0]>>>Instr[11:7]; 				 //ASR
+	5'b01100: 	Result = Instr[3:0]<<Instr[11:7]; 				 //LSL
+	5'b01101: 	Result = Instr[3:0]>>Instr[11:7]; 				 //LSR
+	5'b01110:	Result = a; 							 //MOV                                                   gut12m5,rkjwehgaihjkclvref
+	5'b01111: 	Result = a >> Instr[11:7] | a << (32-Inst[11:7]); 		 //ROR
+	5'b10000: 	Result = a & ~b; 						 //BIC
+	5'b10001: 	Result = ~a; 							 //MVN
+
+
+
+
+
+
        default: Result = 32'bx;
      endcase
 
