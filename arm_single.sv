@@ -498,7 +498,7 @@ module alu (input  logic [31:0] a, b,
    assign sum = a + condinvb + ALUControl[0];
 
    always_comb
-     casex (ALUControl[3:0])
+     casex (ALUControl[4:0])
         5'b0000?:  Result = sum;			    	    // ADD & SUB
         5'b00010:  Result = a & b;  					  // AND
         5'b00011:  Result = a | b;  				  	// ORR
