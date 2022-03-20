@@ -499,45 +499,39 @@ module alu (input  logic [31:0] a, b,
 
    always_comb
      casex (ALUControl[3:0])
-        5'b0000?:  Result = sum;			    	        // ADD & SUB
-        5'b00010:  Result = a & b;  					// AND
+        5'b0000?:  Result = sum;			    	    // ADD & SUB
+        5'b00010:  Result = a & b;  					  // AND
         5'b00011:  Result = a | b;  				  	// ORR
-        5'b00100:  Result = a + b + sum[32];			      	// ADC
-        5'b00101:  begin						// CMN 
-			Result = a + b;				    
-			RegWrite = 0;	
-		  end		      
-        5'b00110:  begin						// CMP
-			RegWrite = 0;
-			Result = a - b;	
-		  end 		  	      
-        5'b00111:  begin						// TEQ
-			Result = a ^ b ; 	
-			RegWrite = 0;
-		  end
-	
-        5'b01000: begin  					     	// TST
-			RegWrite = 0;
-			Result = a & b ; 		
-		 end
-        5'b01001: begin  					      	// SBC
-			Result = a - b - sum[32];			      
-			RegWrite = 0;
-		end
-	5'b01010: 	Result = a ^ b; 						 //EOR
-	5'b01011: 	Result = Instr[3:0]>>>Instr[11:7]; 				 //ASR
-	5'b01100: 	Result = Instr[3:0]<<Instr[11:7]; 				 //LSL
-	5'b01101: 	Result = Instr[3:0]>>Instr[11:7]; 				 //LSR
-	5'b01110:	Result = a; 							 //MOV                                                   gut12m5,rkjwehgaihjkclvref
-	5'b01111: 	Result = a >> Instr[11:7] | a << (32-Inst[11:7]); 		 //ROR
-	5'b10000: 	Result = a & ~b; 						 //BIC
-	5'b10001: 	Result = ~a; 							 //MVN
+        5'b00100:  Result = a + b + sum[32];		// ADC
+        5'b00101:  begin						            // CMN 
+          Result = a + b;				    
+          RegWrite = 0;	
+        end		      
+        5'b00110:  begin						            // CMP
+          RegWrite = 0;
+          Result = a - b;	
+		    end 		  	      
+        5'b00111:  begin						            // TEQ
+          Result = a ^ b ; 	
+          RegWrite = 0;
+        end
 
-
-
-
-
-
+        5'b01000: begin  					     	        // TST
+          RegWrite = 0;
+          Result = a & b ; 		
+        end
+        5'b01001: begin  					      	     // SBC
+          Result = a - b - sum[32];			      
+          RegWrite = 0;
+        end
+        5'b01010: 	Result = a ^ b; 						                          // EOR
+        5'b01011: 	Result = Instr[3:0]>>>Instr[11:7]; 			              // ASR
+        5'b01100: 	Result = Instr[3:0]<<Instr[11:7]; 				            // LSL
+        5'b01101: 	Result = Instr[3:0]>>Instr[11:7]; 				            // LSR
+        5'b01110:	  Result = a; 							                            // MOV                        gut12m5,rkjwehgaihjkclvref
+        5'b01111: 	Result = a >> Instr[11:7] | a << (32-Inst[11:7]); 		// ROR
+        5'b10000: 	Result = a & ~b; 						                          // BIC
+        5'b10001: 	Result = ~a; 							                            // MVN
        default: Result = 32'bx;
      endcase
 
