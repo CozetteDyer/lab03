@@ -137,7 +137,7 @@ module controller (input  logic         clk, reset,
                    output logic         MemWrite, MemtoReg,
                    output logic         PCSrc,
                    output logic         MemStrobe,
-		   output logic 	shiftValue	
+		   output logic  [1:0]	shiftValue	
 			);
  
    logic [1:0] FlagW;
@@ -180,7 +180,7 @@ module decoder (input  logic [1:0] Op,
 		output logic [4:0] ALUControl,
                 output logic [2:0] RegSrc,
                 output logic       MemStrobe,
-		output logic 	   shiftValue);
+		output logic [1:0] shiftValue);
    
    logic [11:0] controls;
    logic        Branch, ALUOp;
@@ -211,6 +211,7 @@ module decoder (input  logic [1:0] Op,
    always_comb
      if (ALUOp)
        begin                 // which Data Processing Instr?
+	 shiftValue = Instr[5:6];
          case(Funct[4:1]) 
             4'b0100: ALUControl = 5'b00000; // ADD
             4'b0010: ALUControl = 5'b00001; // SUB
@@ -223,15 +224,16 @@ module decoder (input  logic [1:0] Op,
             4'b1000: ALUControl = 5'b01000; // TST
             4'b0110: ALUControl = 5'b01001; // SBC
             4'b0001: ALUControl = 5'b01010; // EOR
-	    4'b1101: case(shiftValue)
-	     
-	    		10:   ALUControl = 5'b01011; // ASR
-	   		00:   ALUControl = 5'b01100; // LSL
-	  		01:   ALUControl = 5'b01101; // LSR
-	  		      ALUControl = 5'b01110; // MOV                          NEEDS AN IMMEDIATE ASK TA ON FRIDAY               QJKENJKLNqkheblkNEKHFGBJLKmgkjKLGW
-          		11:   ALUControl = 5'b01111; // ROR
+	    4'b1101:  case(ImmSrc)
+			01:   ALUControl = 5'b01110; // MOV
+			00:	case(shiftValue)
+	    				10:   ALUControl = 5'b01011; // ASR
+	   				00:   ALUControl = 5'b01100; // LSL
+	  				01:   ALUControl = 5'b01101; // LSR              
+          				11:   ALUControl = 5'b01111; // ROR
 
-		     endcase
+		    		endcase
+		      endcase
 
 	    4'b0001: ALUControl = 5'b10000; // BIC
 	    4'b0001: ALUControl = 5'b10001; // MVN
@@ -499,39 +501,39 @@ module alu (input  logic [31:0] a, b,
 
    always_comb
      casex (ALUControl[4:0])
-        5'b0000?:  Result = sum;			    	    // ADD & SUB
-        5'b00010:  Result = a & b;  					  // AND
-        5'b00011:  Result = a | b;  				  	// ORR
-        5'b00100:  Result = a + b + sum[32];		// ADC
-        5'b00101:  begin						            // CMN 
+        5'b0000?:  Result = sum;			    	   			// ADD & SUB
+        5'b00010:  Result = a & b;  							// AND
+        5'b00011:  Result = a | b;  				  			// ORR
+        5'b00100:  Result = a + b + sum[32];						// ADC
+        5'b00101:  begin						            	// CMN 
           Result = a + b;				    
           RegWrite = 0;	
         end		      
-        5'b00110:  begin						            // CMP
+        5'b00110:  begin						          	// CMP
           RegWrite = 0;
           Result = a - b;	
 		    end 		  	      
-        5'b00111:  begin						            // TEQ
+        5'b00111:  begin						           	// TEQ
           Result = a ^ b ; 	
           RegWrite = 0;
         end
 
-        5'b01000: begin  					     	        // TST
+        5'b01000: begin  					     	      		// TST
           RegWrite = 0;
           Result = a & b ; 		
         end
-        5'b01001: begin  					      	     // SBC
+        5'b01001: begin  					      	     		// SBC
           Result = a - b - sum[32];			      
           RegWrite = 0;
         end
-        5'b01010: 	Result = a ^ b; 						                          // EOR
-        5'b01011: 	Result = Instr[3:0]>>>Instr[11:7]; 			              // ASR
-        5'b01100: 	Result = Instr[3:0]<<Instr[11:7]; 				            // LSL
-        5'b01101: 	Result = Instr[3:0]>>Instr[11:7]; 				            // LSR
-        5'b01110:	  Result = a; 							                            // MOV                        gut12m5,rkjwehgaihjkclvref
+        5'b01010: 	Result = a ^ b; 						// EOR
+        5'b01011: 	Result = Instr[3:0]>>>Instr[11:7]; 			        // ASR
+        5'b01100: 	Result = Instr[3:0]<<Instr[11:7]; 				// LSL
+        5'b01101: 	Result = Instr[3:0]>>Instr[11:7]; 				// LSR
+        5'b01110:	Result = a; 							// MOV                       
         5'b01111: 	Result = a >> Instr[11:7] | a << (32-Inst[11:7]); 		// ROR
-        5'b10000: 	Result = a & ~b; 						                          // BIC
-        5'b10001: 	Result = ~a; 							                            // MVN
+        5'b10000: 	Result = a & ~b; 						// BIC
+        5'b10001: 	Result = ~a; 							// MVN
        default: Result = 32'bx;
      endcase
 
